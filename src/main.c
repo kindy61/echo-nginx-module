@@ -3,6 +3,7 @@
 #include "ddebug.h"
 #include "handler.h"
 #include "filter.h"
+#include "cps-filter.h"
 #include "request_info.h"
 
 #include <nginx.h>
@@ -11,6 +12,8 @@
 
 /* config init handler */
 static void* ngx_http_echo_create_conf(ngx_conf_t *cf);
+
+static ngx_int_t ngx_http_echo_post_config (ngx_conf_t *cf);
 
 /* config directive handlers */
 static char* ngx_http_echo_echo(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -63,7 +66,7 @@ static char* ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
 static ngx_http_module_t ngx_http_echo_module_ctx = {
     /* TODO we could add our own variables here... */
     ngx_http_echo_handler_init,                 /* preconfiguration */
-    ngx_http_echo_filter_init,                  /* postconfiguration */
+    ngx_http_echo_post_config,                  /* postconfiguration */
 
     NULL,                          /* create main configuration */
     NULL,                          /* init main configuration */
@@ -372,6 +375,8 @@ static char*
  ngx_http_echo_echo_location(ngx_conf_t *cf, ngx_command_t *cmd,
          void *conf) {
 
+     ngx_http_echo_cps_filter_used = 1;
+
 #if ! defined(nginx_version)
 
     ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -415,6 +420,8 @@ static char*
 static char*
  ngx_http_echo_echo_subrequest(ngx_conf_t *cf, ngx_command_t *cmd,
          void *conf) {
+
+     ngx_http_echo_cps_filter_used = 1;
 
 #if ! defined(nginx_version)
 
@@ -465,5 +472,24 @@ ngx_http_echo_echo_end(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
             echo_opcode_echo_end,
             echo_handler_cmd,
             cf, cmd, conf);
+}
+
+static ngx_int_t
+ngx_http_echo_post_config (ngx_conf_t *cf) {
+    ngx_int_t           rc;
+
+    rc = ngx_http_echo_filter_init(cf);
+
+    if (rc != NGX_OK) {
+        return rc;
+    }
+
+    rc = ngx_http_echo_cps_filter_init(cf);
+
+    if (rc != NGX_OK) {
+        return rc;
+    }
+
+    return rc;
 }
 

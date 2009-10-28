@@ -12,6 +12,7 @@
 #include "subrequest.h"
 #include "request_info.h"
 #include "foreach.h"
+#include "cps-filter.h"
 
 #include <nginx.h>
 #include <ngx_log.h>

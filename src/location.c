@@ -7,9 +7,6 @@
 
 static ngx_int_t ngx_http_echo_adjust_subrequest(ngx_http_request_t *sr);
 
-static ngx_int_t ngx_http_echo_post_subrequest(ngx_http_request_t *r,
-        void *data, ngx_int_t rc);
-
 ngx_int_t
 ngx_http_echo_exec_echo_location_async(ngx_http_request_t *r,
         ngx_http_echo_ctx_t *ctx, ngx_array_t *computed_args) {
@@ -62,7 +59,7 @@ ngx_http_echo_exec_echo_location(ngx_http_request_t *r,
     ngx_str_t                           *computed_arg_elts;
     ngx_str_t                           location;
     ngx_str_t                           *url_args;
-    ngx_http_post_subrequest_t          *psr;
+    ngx_http_echo_ctx_t                 *sub_ctx;
 
     computed_arg_elts = computed_args->elts;
 
@@ -83,15 +80,7 @@ ngx_http_echo_exec_echo_location(ngx_http_request_t *r,
         return rc;
     }
 
-    psr = ngx_palloc(r->pool, sizeof(ngx_http_post_subrequest_t));
-    if (psr == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-
-    psr->handler = ngx_http_echo_post_subrequest;
-    psr->data = ctx;
-
-    rc = ngx_http_subrequest(r, &location, url_args, &sr, psr, 0);
+    rc = ngx_http_subrequest(r, &location, url_args, &sr, NULL, 0);
     if (rc != NGX_OK) {
         return NGX_ERROR;
     }
@@ -101,18 +90,25 @@ ngx_http_echo_exec_echo_location(ngx_http_request_t *r,
         return rc;
     }
 
-    return NGX_OK;
-}
+    rc = ngx_http_echo_init_ctx(sr, &sub_ctx);
+    if (rc != NGX_OK) {
+        return NGX_ERROR;
+    }
 
-static ngx_int_t
-ngx_http_echo_post_subrequest(ngx_http_request_t *r,
-        void *data, ngx_int_t rc) {
-    ngx_http_echo_ctx_t         *ctx;
+    sub_ctx->cps_ctx = ngx_palloc(sr->pool,
+            sizeof(ngx_http_echo_cps_filter_ctx_t));
 
-    ctx = data;
+    if (sub_ctx->cps_ctx == NULL) {
+        return NGX_ERROR;
+    }
+
+    sub_ctx->cps_ctx->request = r;
+
+    ngx_http_set_ctx(sr, sub_ctx, ngx_http_echo_module);
+
     ctx->next_handler_cmd++;
 
-    return ngx_http_echo_handler(r->parent);
+    return NGX_OK;
 }
 
 static ngx_int_t

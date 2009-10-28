@@ -78,6 +78,11 @@ typedef struct {
 
 } ngx_http_echo_foreach_ctx_t;
 
+/* Context for the CPS filter */
+typedef struct {
+    ngx_http_request_t      *request;
+} ngx_http_echo_cps_filter_ctx_t;
+
 /* context struct in the request handling cycle, holding
  * the current states of the command evaluator */
 typedef struct {
@@ -104,6 +109,8 @@ typedef struct {
     ngx_event_t      sleep;
 
     ngx_uint_t       counter;
+
+    ngx_http_echo_cps_filter_ctx_t      *cps_ctx;
 } ngx_http_echo_ctx_t;
 
 #endif /* NGX_HTTP_ECHO_MODULE_H */
