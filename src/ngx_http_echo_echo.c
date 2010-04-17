@@ -46,6 +46,7 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
         ngx_http_echo_ctx_t *ctx, ngx_array_t *computed_args, ngx_flag_t in_filter)
 {
     ngx_uint_t                  i;
+    ngx_uint_t                  append_newline;
 
     ngx_buf_t                   *space_buf;
     ngx_buf_t                   *newline_buf;
@@ -64,8 +65,15 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
     }
 
     computed_arg_elts = computed_args->elts;
+    append_newline = 1;
     for (i = 0; i < computed_args->nelts; i++) {
         computed_arg = &computed_arg_elts[i];
+
+        if (computed_arg->len != 0 && ngx_strncmp("-n",
+                    computed_arg->data, computed_arg->len) == 0) {
+            append_newline = 0;
+            continue;
+        }
 
         if (computed_arg->len == 0) {
             buf = NULL;
@@ -126,31 +134,31 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
         cl = cl->next;
     }
 
-    /* append the newline character */
-    /* TODO add support for -n option to suppress
-     * the trailing newline */
-    newline_buf = ngx_calloc_buf(r->pool);
-    if (newline_buf == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-    *newline_buf = ngx_http_echo_newline_buf;
+    /* append the newline character unless -n */
+    if (append_newline) {
+        newline_buf = ngx_calloc_buf(r->pool);
+        if (newline_buf == NULL) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+        *newline_buf = ngx_http_echo_newline_buf;
 
-    if (cl == NULL) {
-        cl = ngx_alloc_chain_link(r->pool);
         if (cl == NULL) {
-            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            cl = ngx_alloc_chain_link(r->pool);
+            if (cl == NULL) {
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+            cl->buf = newline_buf;
+            cl->next = NULL;
+            /* ll = &cl->next; */
+        } else {
+            *ll = ngx_alloc_chain_link(r->pool);
+            if (*ll == NULL) {
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+            (*ll)->buf  = newline_buf;
+            (*ll)->next = NULL;
+            /* ll = &(*ll)->next; */
         }
-        cl->buf = newline_buf;
-        cl->next = NULL;
-        /* ll = &cl->next; */
-    } else {
-        *ll = ngx_alloc_chain_link(r->pool);
-        if (*ll == NULL) {
-            return NGX_HTTP_INTERNAL_SERVER_ERROR;
-        }
-        (*ll)->buf  = newline_buf;
-        (*ll)->next = NULL;
-        /* ll = &(*ll)->next; */
     }
 
     if (in_filter) {
