@@ -69,7 +69,8 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
     for (i = 0; i < computed_args->nelts; i++) {
         computed_arg = &computed_arg_elts[i];
 
-        if (computed_arg->len != 0 && ngx_strncmp("-n",
+        /* i == 0 focus -n at the first arg */
+        if (i == 0 && computed_arg->len != 0 && ngx_strncmp("-n",
                     computed_arg->data, computed_arg->len) == 0) {
             append_newline = 0;
             continue;
